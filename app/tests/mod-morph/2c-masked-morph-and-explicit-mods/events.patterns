@@ -5,4 +5,6 @@ s/.*hid_unregister_mod.*Modifiers set to /unreg explicit: Modifiers set to /p
 s/.*hid_implicit_modifiers_press.*Modifiers set to /reg implicit: Modifiers set to /p
 s/.*hid_implicit_modifiers_release.*Modifiers set to /unreg implicit: Modifiers set to /p
 s/.*hid_masked_modifiers_set.*Modifiers set to /mask mods: Modifiers set to /p
+s/.*Sent keyboard report after masking modifiers.*/sent masked report/p
 s/.*hid_masked_modifiers_clear.*Modifiers set to /unmask mods: Modifiers set to /p
+s/.*Sent keyboard report after unmasking modifiers.*/sent unmasked report/p

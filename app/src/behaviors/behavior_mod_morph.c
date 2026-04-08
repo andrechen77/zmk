@@ -39,6 +39,7 @@ static int on_mod_morph_binding_pressed(struct zmk_behavior_binding *binding,
     const struct device *dev = zmk_behavior_get_binding(binding->behavior_dev);
     const struct behavior_mod_morph_config *cfg = dev->config;
     struct behavior_mod_morph_data *data = dev->data;
+    int err;
 
     if (data->pressed_binding != NULL) {
         LOG_ERR("Can't press the same mod-morph twice");
@@ -46,7 +47,15 @@ static int on_mod_morph_binding_pressed(struct zmk_behavior_binding *binding,
     }
 
     if (zmk_hid_get_explicit_mods() & cfg->mods) {
-        zmk_hid_masked_modifiers_set(cfg->masked_mods);
+        err = zmk_hid_masked_modifiers_set(cfg->masked_mods);
+        if (err > 0) {
+            err = zmk_endpoints_send_report(HID_USAGE_KEY);
+            if (err < 0) {
+                LOG_ERR("Failed to send keyboard report for masked modifiers (%d)", err);
+                return err;
+            }
+            LOG_DBG("Sent keyboard report after masking modifiers");
+        }
         data->pressed_binding = (struct zmk_behavior_binding *)&cfg->morph_binding;
     } else {
         data->pressed_binding = (struct zmk_behavior_binding *)&cfg->normal_binding;
@@ -58,6 +67,7 @@ static int on_mod_morph_binding_released(struct zmk_behavior_binding *binding,
                                          struct zmk_behavior_binding_event event) {
     const struct device *dev = zmk_behavior_get_binding(binding->behavior_dev);
     struct behavior_mod_morph_data *data = dev->data;
+    int err;
 
     if (data->pressed_binding == NULL) {
         LOG_ERR("Mod-morph already released");
@@ -66,9 +76,21 @@ static int on_mod_morph_binding_released(struct zmk_behavior_binding *binding,
 
     struct zmk_behavior_binding *pressed_binding = data->pressed_binding;
     data->pressed_binding = NULL;
-    int err;
     err = zmk_behavior_invoke_binding(pressed_binding, event, false);
-    zmk_hid_masked_modifiers_clear();
+    if (err < 0) {
+        return err;
+    }
+
+    int mods_cleared = zmk_hid_masked_modifiers_clear();
+    if (mods_cleared > 0) {
+        int report_err = zmk_endpoints_send_report(HID_USAGE_KEY);
+        if (report_err < 0) {
+            LOG_ERR("Failed to send keyboard report after unmasking modifiers (%d)", report_err);
+            return report_err;
+        }
+        LOG_DBG("Sent keyboard report after unmasking modifiers");
+    }
+
     return err;
 }
 
