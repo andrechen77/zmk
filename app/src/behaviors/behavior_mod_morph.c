@@ -52,6 +52,7 @@ static int on_mod_morph_binding_pressed(struct zmk_behavior_binding *binding,
             err = zmk_endpoints_send_report(HID_USAGE_KEY);
             if (err < 0) {
                 LOG_ERR("Failed to send keyboard report for masked modifiers (%d)", err);
+                zmk_hid_masked_modifiers_clear();
                 return err;
             }
             LOG_DBG("Sent keyboard report after masking modifiers");
@@ -77,18 +78,18 @@ static int on_mod_morph_binding_released(struct zmk_behavior_binding *binding,
     struct zmk_behavior_binding *pressed_binding = data->pressed_binding;
     data->pressed_binding = NULL;
     err = zmk_behavior_invoke_binding(pressed_binding, event, false);
-    if (err < 0) {
-        return err;
-    }
 
     int mods_cleared = zmk_hid_masked_modifiers_clear();
     if (mods_cleared > 0) {
         int report_err = zmk_endpoints_send_report(HID_USAGE_KEY);
         if (report_err < 0) {
             LOG_ERR("Failed to send keyboard report after unmasking modifiers (%d)", report_err);
-            return report_err;
+            if (err >= 0) {
+                err = report_err;
+            }
+        } else {
+            LOG_DBG("Sent keyboard report after unmasking modifiers");
         }
-        LOG_DBG("Sent keyboard report after unmasking modifiers");
     }
 
     return err;
